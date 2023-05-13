@@ -19,7 +19,5 @@ public:
 
     /// @overload virtuals
     void run();
-    bool waitRemoteUser(uint16_t timeout);
-    bool sendMessage(uint16_t timeout);
 
 }; // Class Proxy

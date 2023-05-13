@@ -13,11 +13,16 @@ class Device
 {
 protected:
     deviceType_e type;
+    int socketFd; // Socket file descriptor
+    int portNumber;
 
 public:
     Device(deviceType_e type);
     ~Device();
+    int openSocket();
+    int sendMessage(string message, int socketFd);
+    string receiveMessage(int socketFd);
+    void closeSocket(int socketFd);
+
     virtual void run() = 0;
-    virtual bool waitRemoteUser(uint16_t timeout) = 0;
-    virtual bool sendMessage(uint16_t timeout) = 0;
 };

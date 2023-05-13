@@ -17,10 +17,9 @@ public:
     User(string secret);
     ~User();
     bool send_SYN_connect(uint16_t timeout);
+    void send_disconnect();
     
     /// @overload virtuals
     void run();
-    bool waitRemoteUser(uint16_t timeout);
-    bool sendMessage(uint16_t timeout);
     
 }; // Class User
