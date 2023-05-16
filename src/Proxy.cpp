@@ -4,6 +4,8 @@
 */
 #include "Proxy.h"
 #include <thread>
+std::map<int, shared_ptr<userInfo_t>> Proxy::users; // all users connected to the Proxy, keys are thier socketFD
+
 Proxy::Proxy():
     Device(deviceType_e::PROXY)
 {
@@ -36,11 +38,11 @@ void Proxy::run()
     {
         if(this->users.size() >= MAX_USERS)
         {
-            std::cout << "Max users coount reached, Proxy does not accept more users" << std::endl;
+            /// std::cout << "Max users coount reached, Proxy does not accept more users" << std::endl;
             this_thread::sleep_for(chrono::seconds(5));
         }    
 
-        listen(this->socketFd ,2);
+        listen(this->socketFd ,MAX_USERS);
 
         // The accept() call actually accepts an incoming connection
         clilen = sizeof(cli_addr);
@@ -70,21 +72,8 @@ void Proxy::run()
             this->processNewMessage(messageType_e::SYN_CONNECT, this->users[newsockfd], string(""));
 
             // Manage new User in its own thread
-            std::thread newUserThread( [&] { this->spawnSocketInThread(newsockfd); } );
+            std::thread newUserThread( [&] { this->manageSocketInThread(newsockfd); } );
             newUserThread.detach(); // Fire and forget
-        }
-
-        /* Attempt to connect this new User to an existing User */
-        if(this->connectToAnotherUSer(newsockfd))
-        {
-            // Inform both users that they are connected
-            this->sendMessage(string(std::to_string(static_cast<int>(messageType_e::REMOTE_USER_OK)) + std::to_string(this->users[newsockfd]->pairedUserFd)), newsockfd);
-            this->sendMessage(string(std::to_string(static_cast<int>(messageType_e::REMOTE_USER_OK)) + std::to_string(newsockfd)), this->users[newsockfd]->pairedUserFd);
-        }
-        else
-        {
-            // Inform new User that he is not connected
-            this->sendMessage(string(std::to_string(static_cast<int>(messageType_e::REMOTE_USER_KO))), newsockfd);
         }
     }
 
@@ -104,11 +93,8 @@ void Proxy::processNewMessage(messageType_e messageType, std::shared_ptr<userInf
     case messageType_e::SYN_CONNECT:
     {
         // Send ACK to User that he is conneted
-        int ret = this->sendMessage(string(std::to_string(static_cast<int>(messageType_e::SYN_ACK))), sender->socketFd);
-        if (ret < 0)
-        {
-            cout << "ERROR writing to socket" << endl;
-        }
+        this->sendMessage(string(std::to_string(static_cast<int>(messageType_e::SYN_ACK))), sender->socketFd);
+
         break;
     }
     case messageType_e::SHARE_SECRET:
@@ -118,8 +104,24 @@ void Proxy::processNewMessage(messageType_e messageType, std::shared_ptr<userInf
         it = this->users.find(sender->socketFd);
         if(it != this->users.end())
         {
+        cout<< "secret of " << sender->socketFd <<"("<<this->users.at(sender->socketFd)->socketFd<<")"<< "is:" << message<<endl;
             this->users.at(sender->socketFd)->secret = message;
+
+            /* Attempt to connect this new User to an existing User */
+            if(this->connectToAnotherUSer(sender->socketFd))
+            {
+                // Inform both users that they are connected
+                this->sendMessage(string(std::to_string(static_cast<int>(messageType_e::REMOTE_USER_OK)) + std::to_string(this->users[sender->socketFd]->pairedUserFd)), sender->socketFd);
+                this->sendMessage(string(std::to_string(static_cast<int>(messageType_e::REMOTE_USER_OK)) + std::to_string(sender->socketFd)), this->users[sender->socketFd]->pairedUserFd);
+            }
+            else
+            {
+                // Inform new User that he is not connected
+                this->sendMessage(string(std::to_string(static_cast<int>(messageType_e::REMOTE_USER_KO))), sender->socketFd);
+            }
         }
+        else
+        cout<< "----------" <<endl;
 
         break;
     }
@@ -128,15 +130,11 @@ void Proxy::processNewMessage(messageType_e messageType, std::shared_ptr<userInf
         if(sender->pairedUserFd > -1)
         {
             // Forward message to user
-            int ret = this->sendMessage(message, sender->pairedUserFd);
-            if (ret < 0)
-            {
-                cout << "ERROR writing to socket" << endl;
-            }
+            this->sendMessage(string(std::to_string(static_cast<int>(messageType_e::MESSAGE))) +  message, sender->pairedUserFd);
         }
         else
         {
-            cout << "No user connected to forward this message" << endl;
+            cout << "No second user found to receive the message" << endl;
         }
         
         break;
@@ -157,7 +155,7 @@ void Proxy::processNewMessage(messageType_e messageType, std::shared_ptr<userInf
  * an proceeds to the execution on the receive message. This funtion should be passed in a thread
  * @param socketFD  : Socket file descriptor to manage I/O
 */
-void Proxy::spawnSocketInThread(int socketFd)
+void Proxy::manageSocketInThread(int socketFd)
 {
     std::map<int, shared_ptr<userInfo_t>>::iterator it;
     while (1)
@@ -197,10 +195,17 @@ bool Proxy::connectToAnotherUSer(int newCommerFd)
         {
             if (it->first != newCommerFd)
             {
-                it->second->pairedUserFd = newCommerFd;
-                this->users[newCommerFd]->pairedUserFd = it->first;
-                connected = true;
-                break; // Only 2 users max
+                if(it->second->secret == this->users[newCommerFd]->secret)
+                {
+                    it->second->pairedUserFd = newCommerFd;
+                    this->users[newCommerFd]->pairedUserFd = it->first;
+                    connected = true;
+                }
+                else
+                {
+                    cout << "User not paired because of secret mismatch" << endl;
+                    cout <<  it->second->secret<< "#"<< this->users[newCommerFd]->secret<< endl;
+                }
             }
         }
     }

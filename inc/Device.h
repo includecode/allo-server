@@ -31,6 +31,12 @@ enum class messageType_e
     _COUNT
 };
 
+enum class readBlockingType_e
+{
+    BLOCKING,
+    NON_BLOCKING
+};
+
 class Device
 {
 protected:
@@ -45,7 +51,7 @@ public:
     int sendMessage(string message, int socketFd);
     string receiveMessage(int socketFd);
     void closeSocket(int socketFd);
-    void setSocketReceiveTimeOut(int socketFD, int timeoutSec);
+    void enableDisableSocketBlocking(int socketFd, readBlockingType_e type);
     messageType_e getMessageType(const string message);
 
     virtual void run() = 0;

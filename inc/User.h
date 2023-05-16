@@ -27,9 +27,9 @@ public:
     ~User();
     bool send_SYN_connect(uint16_t timeout);
     void send_disconnect();
-    void parseCommands();
+    void sendCommands();
     void waitForAnotherUser();
-    void readUntilAnotherUserFound(std::condition_variable& cv, std::mutex &mutexTimerExpiredVar);
+    void socketReadThread(std::condition_variable& cv, std::mutex &mutexTimerExpiredVar);
     void processNewMessage(messageType_e messageType, string message = string(""));
     
     /// @overload virtuals

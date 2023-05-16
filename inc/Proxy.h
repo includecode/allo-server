@@ -21,13 +21,13 @@ typedef struct userInfo_t
 class Proxy : public Device
 {
 private:
-    std::map<int, shared_ptr<userInfo_t>> users; // all users connected to the Proxy, keys are thier socketFD
+    static std::map<int, shared_ptr<userInfo_t>> users; // all users connected to the Proxy, keys are thier socketFD
 
 public:
     Proxy();
     ~Proxy();
     void processNewMessage(string message);
-    void spawnSocketInThread(int socketFd);
+    void manageSocketInThread(int socketFd);
     bool connectToAnotherUSer(int newCommerFd);
     void processNewMessage(messageType_e messageType, std::shared_ptr<userInfo_t> &sender, string message = string(""));
     void disconnectUser(int socketFd);

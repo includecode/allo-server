@@ -17,7 +17,11 @@ Device::Device(deviceType_e type): type(type)
     }
     else
     {
-        this->portNumber = PROXY_PORT +1;
+        // Providing a seed value
+	    srand((unsigned) time(NULL));
+        // Ports from 0-1023 are reserved
+        int random =  1023 + (rand() % 64000 );
+        this->portNumber = random;
     }
 }
 
@@ -73,7 +77,12 @@ int Device::openSocket()
 int Device::sendMessage(string message, int socketFd)
 {
     cout << "Debug:<---------" << message << endl; // "to FD:" << socketFd << endl;
-    return (send(socketFd, message.c_str(), message.size(), 0));
+    int ret = send(socketFd, message.c_str(), message.size(), 0);
+    if (ret < 0)
+    {
+        cout << "ERROR writing to socket" << endl;
+    }
+    return ret;
 }
 
 /**
@@ -110,26 +119,14 @@ void Device::closeSocket(int socketFd)
 }
 
 /**
- * @brief           : Set timeout value on a socket for receiving messages
- * @param socketFd  : File descriptor of the socket to set timeout
- * @param timeoutSec: Receive timeout in seconds
+ * @brief       : Set if reading from socket should be blocking until data received
+ * @param type  : Blocking type for the socket
+ * NOTE: if type is \c readBlockingType_e::BLOCKING , then reading is aborted when socket is closed
 */
-void Device::setSocketReceiveTimeOut(int socketFD, int timeoutSec)
+void Device::enableDisableSocketBlocking(int socketFd, readBlockingType_e type)
 {
-    int a =1;
-    ioctl(socketFD, FIONBIO, &a);
-    struct timeval tv;
-    tv.tv_sec = timeoutSec *1000;
-    tv.tv_usec = 0;
-    int ret = setsockopt(socketFD, SOL_SOCKET, SO_RCVTIMEO, (const char*)&tv, sizeof (struct timeval));
-    if(ret < 0)
-    {
-        cout << "Error on setSockOpt" << endl;
-    }
-    else
-    {
-        cout << "setSockOpt OK" << endl;
-    }
+    int readBlocking = static_cast<int>(type);
+    ioctl(socketFd, FIONBIO, &readBlocking);
 }
 
 /**

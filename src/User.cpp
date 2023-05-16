@@ -51,7 +51,7 @@ void User::run()
     bcopy((char *)server->h_addr, 
          (char *)&serv_addr.sin_addr.s_addr,
          server->h_length);
-    serv_addr.sin_port = htons(PROXY_PORT); // We can to read from server's port
+    serv_addr.sin_port = htons(PROXY_PORT); // We want to read from server's port
 
     if (connect(this->socketFd, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0)
     {
@@ -68,15 +68,7 @@ void User::run()
         this->processNewMessage(messageType, message.substr(1));
     }
 
-    this->setSocketReceiveTimeOut(this->socketFd, DEFAULT_READ_TIME_OUT);
-
-    /* Wait for another user to join the network, with a max timeout val */
-    /*message = this->receiveMessage(this->socketFd);
-    messageType = this->getMessageType(message);
-    if(messageType != messageType_e::_COUNT)
-    {
-        this->processNewMessage(messageType, message.substr(1));
-    }*/
+    this->enableDisableSocketBlocking(this->socketFd, readBlockingType_e::NON_BLOCKING);
 
     this->waitForAnotherUser();
 
@@ -98,15 +90,8 @@ void User::processNewMessage(messageType_e messageType, string message)
     {
         cout << "Successfuly connected to Proxy" << endl;
 
-        // Share my secret with the Proxy
-        if(this->secret.size())
-        {
-            int ret = this->sendMessage(std::to_string(static_cast<int>(messageType_e::SHARE_SECRET)) + this->secret, this->socketFd);
-            if (ret < 0)
-            {
-                cout << "ERROR writing to socket\n" << endl;
-            }
-        }
+        // Share my secret with the Proxy, even if empty
+        this->sendMessage(std::to_string(static_cast<int>(messageType_e::SHARE_SECRET)) + this->secret, this->socketFd);
         
         break;
     }
@@ -134,23 +119,15 @@ void User::processNewMessage(messageType_e messageType, string message)
             if(message.substr(0, toFind.size()).find(toFind) != std::string::npos)
             { // ECHOREPLY
                 isEchoReply = true;
-                message = message.substr(pos);
-            }
-            else // ECHO
-            {
-                message = message.substr(string("ECHO").size() +1);
             }
         }
 
+        message = message.substr(pos +1);
         cout << message << endl;
         if(isEchoReply)
         {
-            // Send my secret to the Proxy
-            int ret = this->sendMessage(std::to_string(static_cast<int>(messageType_e::MESSAGE)) + message, this->socketFd);
-            if (ret < 0)
-            {
-                cout << "ERROR writing to socket\n" << endl;
-            }
+            // Resend the same message to the User
+            this->sendMessage(std::to_string(static_cast<int>(messageType_e::MESSAGE)) + message, this->socketFd);
         }
         
         break;            
@@ -162,9 +139,9 @@ void User::processNewMessage(messageType_e messageType, string message)
 }
 
 /**
- * @brief Read commands from user input and process
+ * @brief Read commands from user input and send to Proxy
 */
-void User::parseCommands()
+void User::sendCommands()
 {
     std::string line;
     while(1)
@@ -191,11 +168,7 @@ void User::parseCommands()
         }
         else
         {
-            int ret = this->sendMessage(string(std::to_string(static_cast<int>(messageType_e::MESSAGE))) + line, this->socketFd);
-            if (ret < 0)
-            {
-                cout << "ERROR writing to socket\n" << endl;
-            }
+            this->sendMessage(string(std::to_string(static_cast<int>(messageType_e::MESSAGE))) + line, this->socketFd);
         }
     }
 }
@@ -212,43 +185,42 @@ void User::waitForAnotherUser()
     auto now = std::chrono::system_clock::now();
 
     // Call reader thread
-    std::thread reader([&] {this->readUntilAnotherUserFound(cv, mutexTimerExpiredVar);});
+    std::thread reader([&] {this->socketReadThread(cv, mutexTimerExpiredVar);});
     reader.detach(); // Fire and forget
 
     // Wait for reader thread until timeout
-    if(cv.wait_until(lk, now + /*USER_PAIR_TIME_OUT*/ 10 * 1000ms, [&](){return this->isConnectedToAnotherUser == true;}))
+    if(cv.wait_until(lk, now + USER_PAIR_TIME_OUT * 1000ms, [&](){return this->isConnectedToAnotherUser == true;}))
     {
-        // Thread has exit before timeout expired => another user has joined
-        // Change back timeout from 30s to default value, and start accepting commands from user
-        //this->setSocketReceiveTimeOut(this->socketFd, DEFAULT_READ_TIME_OUT);
+        // Thread has exited before timeout expired => another user has joined
         lk.unlock();
-        this->parseCommands();
+        this->sendCommands();
     }
     else
     {
-        // Stop waiting thread "readUntilAnotherUserFound"
+        // Stop waiting thread "socketReadThread"
+        cout << "Timeout expired: Exiting..." << endl;
         lk.unlock();
         mutexTimerExpiredVar.lock(); 
         this->isTimerExpired = true;
         mutexTimerExpiredVar.unlock();
     }
-
-    cout << "Timeout expired: Exiting..." << endl;
-
 }
 
 /**
- * @brief Wait for a message from Proxy saying another user has joined
+ * @brief Wait for a message from Proxy
  * @param cv                    : Conditional variable shared with waiter thread
- * @param mutexTimerExpiredVar  : Mutex shared with waiter thread
+ * @param mutexTimerExpiredVar  : Mutex shared with waiter thread, used to end this thread
 */
-void User::readUntilAnotherUserFound(std::condition_variable& cv, std::mutex &mutexTimerExpiredVar)
+void User::socketReadThread(std::condition_variable& cv, std::mutex& mutexTimerExpiredVar)
 {
+    bool firstMessage = true;
     while (1)
     {
+        // Manage timer case, flag updated by caller thread
         mutexTimerExpiredVar.lock(); 
         if(this->isTimerExpired)
         {
+            mutexTimerExpiredVar.unlock();
             break;
         }
         mutexTimerExpiredVar.unlock();
@@ -264,12 +236,18 @@ void User::readUntilAnotherUserFound(std::condition_variable& cv, std::mutex &mu
                 if(messageType_e::REMOTE_USER_OK == messageType)
                 {
                     cv.notify_all();
-                    break;
                 }
+            }
+
+            // Remote User disconnected
+            if(messageType == messageType_e::REMOTE_USER_KO && (!firstMessage))
+            {
+                break;
             }
         }
 
         // Tempo
         this_thread::sleep_for(chrono::milliseconds(WAIT_USER_RELEX_MS));
+        firstMessage = false;
     }
 }
