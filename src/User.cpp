@@ -1,5 +1,5 @@
 /**
- *  Project SNOWPACK by PAvel SAMENE TIAH; FILE User.cpp, GNU GENERAL PUBLIC LICENSE, May 2023
+ *  Project SNOWPACK by Pavel SAMENE TIAH; FILE User.cpp, GNU GENERAL PUBLIC LICENSE, May 2023
  * 
 */
 
@@ -98,7 +98,7 @@ void User::processNewMessage(messageType_e messageType, string message)
     case messageType_e::REMOTE_USER_OK:
     {
         this->isConnectedToAnotherUser = true;
-        cout << "Successfuly connected to a user wich has FD:" << message << endl;
+        cout << "---------- Successfuly connected to a user wich has FD: " << message << " ------------" << endl;
         break;
     }
     case messageType_e::REMOTE_USER_KO:
@@ -117,7 +117,7 @@ void User::processNewMessage(messageType_e messageType, string message)
 
             // search for "ECHOREPLY" in the received message, 9 first chars
             if(message.substr(0, toFind.size()).find(toFind) != std::string::npos)
-            { // ECHOREPLY
+            {
                 isEchoReply = true;
             }
         }
@@ -144,32 +144,11 @@ void User::processNewMessage(messageType_e messageType, string message)
 void User::sendCommands()
 {
     std::string line;
+    cout << "-------- @@@ AT ANY TIME @@@, type a message and press enter -----------" << endl;
     while(1)
     {
-        cout << "[User$]:";
         std::getline(std::cin, line);
-        size_t pos = line.find(" ") ;
-        bool commandIsValid = false;
-        if(pos != std::string::npos)
-        {
-            string strEchoReply = string("ECHOREPLY");
-            string strEcho = string("ECHO");
-
-            // search for "ECHOREPLY" or "ECHO" in the received message
-            if((line.substr(0, strEchoReply.size()).find(strEchoReply) != std::string::npos)
-                || (line.substr(0, strEcho.size()).find(strEcho) != std::string::npos))
-            {
-                commandIsValid = true;
-            }
-        }
-        if(!commandIsValid)
-        {
-            cout << "Supported commands are: 'ECHO msg' and 'ECHOREPLY msg'" << endl;
-        }
-        else
-        {
-            this->sendMessage(string(std::to_string(static_cast<int>(messageType_e::MESSAGE))) + line, this->socketFd);
-        }
+        this->sendMessage(string(std::to_string(static_cast<int>(messageType_e::MESSAGE))) + line, this->socketFd);
     }
 }
 
@@ -191,14 +170,14 @@ void User::waitForAnotherUser()
     // Wait for reader thread until timeout
     if(cv.wait_until(lk, now + USER_PAIR_TIME_OUT * 1000ms, [&](){return this->isConnectedToAnotherUser == true;}))
     {
-        // Thread has exited before timeout expired => another user has joined
+        // Thread has notify()'d before timeout expired => another user has joined
         lk.unlock();
         this->sendCommands();
     }
     else
     {
-        // Stop waiting thread "socketReadThread"
-        cout << "Timeout expired: Exiting..." << endl;
+        // Stop waiting the thread "socketReadThread"
+        cout << USER_PAIR_TIME_OUT << " s Timeout expired: Exiting..." << endl;
         lk.unlock();
         mutexTimerExpiredVar.lock(); 
         this->isTimerExpired = true;
@@ -242,7 +221,7 @@ void User::socketReadThread(std::condition_variable& cv, std::mutex& mutexTimerE
             // Remote User disconnected
             if(messageType == messageType_e::REMOTE_USER_KO && (!firstMessage))
             {
-                break;
+                this->isConnectedToAnotherUser = false;
             }
         }
 

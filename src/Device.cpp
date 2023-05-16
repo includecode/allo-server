@@ -1,5 +1,5 @@
 /**
- *  Project SNOWPACK by PAvel SAMENE TIAH; Device Device.cpp, GNU GENERAL PUBLIC LICENSE, May 2023
+ *  Project SNOWPACK by Pavel SAMENE TIAH; Device Device.cpp, GNU GENERAL PUBLIC LICENSE, May 2023
  * 
 */
 
@@ -47,6 +47,13 @@ int Device::openSocket()
         cout << "ERROR opening socket" << endl;
         return sockfd;
     }
+
+    // Prevent kernel from keeping socketFD alive in a waiting state when process is killed
+    const int enable = 1;
+    if (setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &enable, sizeof(int)) < 0)
+    {
+        cout << "Failed to set 'SO_REUSEADDR'" << endl;
+    }
    
     cout << "Port: " << this->portNumber <<  ", \tFD: " << sockfd << endl;
 
@@ -62,7 +69,7 @@ int Device::openSocket()
     if (bind(sockfd, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0)
     {
         this->closeSocket(sockfd);
-        cout << "ERROR on binding, please restart" << endl;
+        cout << "ERROR on binding, please restart, errno: " << errno << endl;
         return -1;
     }
 
@@ -76,7 +83,7 @@ int Device::openSocket()
 */
 int Device::sendMessage(string message, int socketFd)
 {
-    cout << "Debug:<---------" << message << endl; // "to FD:" << socketFd << endl;
+    /// cout << "Debug:<---------" << message << " to " << socketFd <<endl; // "to FD:" << socketFd << endl;
     int ret = send(socketFd, message.c_str(), message.size(), 0);
     if (ret < 0)
     {
@@ -87,8 +94,8 @@ int Device::sendMessage(string message, int socketFd)
 
 /**
  * @brief Sends message on this devices socket file descriptor
- * @param  socketFd : Socket file descriptor to receive from
- * @return \c int   : Number of bytes sent or error code if send error
+ * @param  socketFd     : Socket file descriptor to receive from
+ * @return \c string    : data read
 */
 string Device::receiveMessage(int socketFd)
 {
@@ -100,7 +107,10 @@ string Device::receiveMessage(int socketFd)
     {
         string strRemoveEmpty = string(receiveBuff);
         ret = string(strRemoveEmpty, 0, n); // Get a string matching the excat length (remove remaining empty buff)
-        cout << "Debug---------> " << ret << endl;
+        ///if(n > 0)
+        ///{
+        ///    cout << "Debug---------> " << ret << endl;
+        ///}
     }
 
     return ret;

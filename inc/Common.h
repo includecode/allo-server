@@ -1,5 +1,5 @@
 /**
- *  Project SNOWPACK by PAvel SAMENE TIAH; FILE Common.h, GNU GENERAL PUBLIC LICENSE, May 2023
+ *  Project SNOWPACK by Pavel SAMENE TIAH; FILE Common.h, GNU GENERAL PUBLIC LICENSE, May 2023
  * 
 */
 #pragma once
@@ -17,3 +17,4 @@
 #include <netinet/in.h>
 #include <netdb.h>
 #include <arpa/inet.h>
+#include <errno.h>

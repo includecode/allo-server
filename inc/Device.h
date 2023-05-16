@@ -1,5 +1,5 @@
 /**
- *  Project SNOWPACK by PAvel SAMENE TIAH; Device Device.h, GNU GENERAL PUBLIC LICENSE, May 2023
+ *  Project SNOWPACK by Pavel SAMENE TIAH; Device Device.h, GNU GENERAL PUBLIC LICENSE, May 2023
  * 
 */
 #pragma once

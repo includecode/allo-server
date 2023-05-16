@@ -1,5 +1,5 @@
 /**
- *  Project SNOWPACK by PAvel SAMENE TIAH; FILE Proxy.cpp, GNU GENERAL PUBLIC LICENSE, May 2023
+ *  Project SNOWPACK by Pavel SAMENE TIAH; FILE Proxy.cpp, GNU GENERAL PUBLIC LICENSE, May 2023
  * 
 */
 #include "Proxy.h"
@@ -28,11 +28,6 @@ void Proxy::run()
     struct sockaddr_in cli_addr;
     socklen_t clilen;
 
-     // This listen() call tells the socket to listen to the incoming connections.
-     // The listen() function places all incoming connection into a backlog queue
-     // until accept() call accepts the connection.
-     // Here, we set the maximum size for the backlog queue to 5.
-
     std::cout << "Waiting for clients..." << std::endl;
     while (1)
     {
@@ -47,19 +42,13 @@ void Proxy::run()
         // The accept() call actually accepts an incoming connection
         clilen = sizeof(cli_addr);
 
-        // This accept() function will write the connecting client's address info 
-        // into the the address structure and the size of that structure is clilen.
-        // The accept() returns a new socket file descriptor for the accepted connection.
-        // So, the original socket file descriptor can continue to be used 
-        // for accepting new connections while the new socker file descriptor is used for
-        // communicating with the connected client.
-        int newsockfd = accept(this->socketFd, 
-                    (struct sockaddr *) &cli_addr, &clilen);
-        if (newsockfd < 0) 
-            printf("ERROR on accept\n");
+        int newsockfd = accept(this->socketFd, (struct sockaddr *) &cli_addr, &clilen);
+        if (newsockfd < 0)
+        {
+            cout << "ERROR on accept" << endl;
+        }
 
-        printf("server: got connection from %s port %d\n",
-            inet_ntoa(cli_addr.sin_addr), ntohs(cli_addr.sin_port));
+        cout << "server: got connection from " << inet_ntoa(cli_addr.sin_addr) << "port " << ntohs(cli_addr.sin_port) << endl;
 
         // If connected user does not exist, insert him in map
         if (this->users.find(newsockfd) == this->users.end())
@@ -88,6 +77,12 @@ void Proxy::run()
 */
 void Proxy::processNewMessage(messageType_e messageType, std::shared_ptr<userInfo_t> &sender, string message)
 {
+    // Server also prints the received message
+    if(message.size() && (messageType_e::MESSAGE == messageType))
+    {
+        cout << message << endl;
+    }
+
     switch (messageType)
     {
     case messageType_e::SYN_CONNECT:
@@ -104,15 +99,17 @@ void Proxy::processNewMessage(messageType_e messageType, std::shared_ptr<userInf
         it = this->users.find(sender->socketFd);
         if(it != this->users.end())
         {
-        cout<< "secret of " << sender->socketFd <<"("<<this->users.at(sender->socketFd)->socketFd<<")"<< "is:" << message<<endl;
             this->users.at(sender->socketFd)->secret = message;
 
             /* Attempt to connect this new User to an existing User */
             if(this->connectToAnotherUSer(sender->socketFd))
             {
                 // Inform both users that they are connected
-                this->sendMessage(string(std::to_string(static_cast<int>(messageType_e::REMOTE_USER_OK)) + std::to_string(this->users[sender->socketFd]->pairedUserFd)), sender->socketFd);
-                this->sendMessage(string(std::to_string(static_cast<int>(messageType_e::REMOTE_USER_OK)) + std::to_string(sender->socketFd)), this->users[sender->socketFd]->pairedUserFd);
+                this->sendMessage(string(std::to_string(static_cast<int>(messageType_e::REMOTE_USER_OK)) \
+                    + std::to_string(this->users[sender->socketFd]->pairedUserFd)), sender->socketFd);
+
+                this->sendMessage(string(std::to_string(static_cast<int>(messageType_e::REMOTE_USER_OK)) \
+                    + std::to_string(sender->socketFd)), this->users[sender->socketFd]->pairedUserFd);
             }
             else
             {
@@ -120,8 +117,6 @@ void Proxy::processNewMessage(messageType_e messageType, std::shared_ptr<userInf
                 this->sendMessage(string(std::to_string(static_cast<int>(messageType_e::REMOTE_USER_KO))), sender->socketFd);
             }
         }
-        else
-        cout<< "----------" <<endl;
 
         break;
     }
@@ -204,7 +199,6 @@ bool Proxy::connectToAnotherUSer(int newCommerFd)
                 else
                 {
                     cout << "User not paired because of secret mismatch" << endl;
-                    cout <<  it->second->secret<< "#"<< this->users[newCommerFd]->secret<< endl;
                 }
             }
         }
@@ -219,7 +213,7 @@ bool Proxy::connectToAnotherUSer(int newCommerFd)
 */
 void Proxy::removeUser(int userFD)
 {
-    // Find if some users where connected to him, and invalidate the connection
+    // Find if some users where connected to him, invalidate the connection and send them a notification
     std::map<int, shared_ptr<userInfo_t>>::iterator it;
     for(it = this->users.begin(); it != this->users.end(); it++)
     {
@@ -237,4 +231,3 @@ void Proxy::removeUser(int userFD)
         this->users.erase(it);
     }
 }
-/* Getters ans Setters */
