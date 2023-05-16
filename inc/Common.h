@@ -17,12 +17,3 @@
 #include <netinet/in.h>
 #include <netdb.h>
 #include <arpa/inet.h>
-
-#define PROXY_PORT 1030
-#define MAX_MSG_SIZE 1024
-
-enum class deviceType_e
-{
-    PROXY,
-    USER
-};

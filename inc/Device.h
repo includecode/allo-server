@@ -7,7 +7,29 @@
 #include "Device.h"
 #include <fstream>
 
+#define PROXY_PORT 1030
+#define MAX_MSG_SIZE 1024
+#define MAX_USERS 2 // Max two users
+
 using namespace std;
+
+enum class deviceType_e
+{
+    PROXY,
+    USER
+};
+
+enum class messageType_e
+{
+    SYN_CONNECT,
+    SYN_ACK,
+    SHARE_SECRET,
+    REMOTE_USER_OK,
+    REMOTE_USER_KO,
+    DISCONNECT,
+    MESSAGE,
+    _COUNT
+};
 
 class Device
 {
@@ -23,6 +45,8 @@ public:
     int sendMessage(string message, int socketFd);
     string receiveMessage(int socketFd);
     void closeSocket(int socketFd);
+    void setSocketReceiveTimeOut(int socketFD, int timeoutSec);
+    messageType_e getMessageType(const string message);
 
     virtual void run() = 0;
 };

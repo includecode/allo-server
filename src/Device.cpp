@@ -4,6 +4,8 @@
 */
 
 #include "Device.h"
+#include "poll.h"
+#include "sys/ioctl.h"
 
 Device::Device(deviceType_e type): type(type)
 {
@@ -55,7 +57,9 @@ int Device::openSocket()
 
     if (bind(sockfd, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0)
     {
-        cout << "ERROR on binding" << endl;
+        this->closeSocket(sockfd);
+        cout << "ERROR on binding, please restart" << endl;
+        return -1;
     }
 
     return sockfd;
@@ -68,16 +72,14 @@ int Device::openSocket()
 */
 int Device::sendMessage(string message, int socketFd)
 {
-    /*if(this->type == deviceType_e::PROXY)
-    return write(socketFd, message.c_str(), message.size());
-    else*/
+    cout << "Debug:<---------" << message << endl; // "to FD:" << socketFd << endl;
     return (send(socketFd, message.c_str(), message.size(), 0));
 }
 
 /**
  * @brief Sends message on this devices socket file descriptor
  * @param  socketFd : Socket file descriptor to receive from
- * @return number of bytes sent or error code if send error
+ * @return \c int   : Number of bytes sent or error code if send error
 */
 string Device::receiveMessage(int socketFd)
 {
@@ -89,7 +91,7 @@ string Device::receiveMessage(int socketFd)
     {
         string strRemoveEmpty = string(receiveBuff);
         ret = string(strRemoveEmpty, 0, n); // Get a string matching the excat length (remove remaining empty buff)
-        cout << "---------> " << ret << endl;
+        cout << "Debug---------> " << ret << endl;
     }
 
     return ret;
@@ -104,6 +106,49 @@ void Device::closeSocket(int socketFd)
     if(socketFd > -1)
     {
         close(socketFd);
-        cout << "Connection closed succesfully from sockefFD:" << socketFd << endl;
     }
+}
+
+/**
+ * @brief           : Set timeout value on a socket for receiving messages
+ * @param socketFd  : File descriptor of the socket to set timeout
+ * @param timeoutSec: Receive timeout in seconds
+*/
+void Device::setSocketReceiveTimeOut(int socketFD, int timeoutSec)
+{
+    int a =1;
+    ioctl(socketFD, FIONBIO, &a);
+    struct timeval tv;
+    tv.tv_sec = timeoutSec *1000;
+    tv.tv_usec = 0;
+    int ret = setsockopt(socketFD, SOL_SOCKET, SO_RCVTIMEO, (const char*)&tv, sizeof (struct timeval));
+    if(ret < 0)
+    {
+        cout << "Error on setSockOpt" << endl;
+    }
+    else
+    {
+        cout << "setSockOpt OK" << endl;
+    }
+}
+
+/**
+ * @brief           : Get message type
+ * @param message   : message
+ * @param timeoutSec: Receive timeout in seconds
+*/
+messageType_e Device::getMessageType(const string message)
+{
+    messageType_e messageType = messageType_e::_COUNT;
+
+    if(message.size())
+    {
+        int msgType = static_cast<int>(message.at(0) - '0');
+        if(msgType < static_cast<int>(messageType_e::_COUNT) && msgType > 0)
+        {
+            messageType = static_cast<messageType_e>(msgType);
+        }
+    }
+
+    return messageType;
 }
