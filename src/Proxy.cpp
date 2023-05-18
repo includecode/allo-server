@@ -4,7 +4,7 @@
 */
 #include "Proxy.h"
 #include <thread>
-std::map<int, shared_ptr<userInfo_t>> Proxy::users; // all users connected to the Proxy, keys are thier socketFD
+std::map<int, shared_ptr<User>> Proxy::users; // all users connected to the Proxy, keys are thier socketFD
 
 Proxy::Proxy():
     Device(deviceType_e::PROXY)
@@ -53,8 +53,8 @@ void Proxy::run()
         // If connected user does not exist, insert him in map
         if (this->users.find(newsockfd) == this->users.end())
         {
-            shared_ptr<userInfo_t> userInfo = make_shared<userInfo_t>();
-            userInfo->socketFd = newsockfd;
+            shared_ptr<User> userInfo = make_shared<User>("");
+            userInfo->setSocketFD(newsockfd);
             this->users[newsockfd] = userInfo;
 
             // Send ACK
@@ -75,7 +75,7 @@ void Proxy::run()
  * @param sender        : User who sent the \c message
  * @param message       : Optional message for message with type \c messageType_e::SEND_MESSAGE or \c messageType_e::MESSAGE
 */
-void Proxy::processNewMessage(messageType_e messageType, std::shared_ptr<userInfo_t> &sender, string message)
+void Proxy::processNewMessage(messageType_e messageType, std::shared_ptr<User> &sender, string message)
 {
     // Server also prints the received message
     if(message.size() && (messageType_e::MESSAGE == messageType))
@@ -88,33 +88,33 @@ void Proxy::processNewMessage(messageType_e messageType, std::shared_ptr<userInf
     case messageType_e::SYN_CONNECT:
     {
         // Send ACK to User that he is conneted
-        this->sendMessage(string(std::to_string(static_cast<int>(messageType_e::SYN_ACK))), sender->socketFd);
+        this->sendMessage(string(std::to_string(static_cast<int>(messageType_e::SYN_ACK))), sender->getSocketFD());
 
         break;
     }
     case messageType_e::SHARE_SECRET:
     {
         // Store Users secret
-        std::map<int, shared_ptr<userInfo_t>>::iterator it;
-        it = this->users.find(sender->socketFd);
+        std::map<int, shared_ptr<User>>::iterator it;
+        it = this->users.find(sender->getSocketFD());
         if(it != this->users.end())
         {
-            this->users.at(sender->socketFd)->secret = message;
+            this->users.at(sender->getSocketFD())->setSecret(message);
 
             /* Attempt to connect this new User to an existing User */
-            if(this->connectToAnotherUSer(sender->socketFd))
+            if(this->connectToAnotherUSer(sender->getSocketFD()))
             {
                 // Inform both users that they are connected
                 this->sendMessage(string(std::to_string(static_cast<int>(messageType_e::REMOTE_USER_OK)) \
-                    + std::to_string(this->users[sender->socketFd]->pairedUserFd)), sender->socketFd);
+                    + std::to_string(this->users[sender->getSocketFD()]->getPairedUserFD())), sender->getSocketFD());
 
                 this->sendMessage(string(std::to_string(static_cast<int>(messageType_e::REMOTE_USER_OK)) \
-                    + std::to_string(sender->socketFd)), this->users[sender->socketFd]->pairedUserFd);
+                    + std::to_string(sender->getSocketFD())), this->users[sender->getSocketFD()]->getPairedUserFD());
             }
             else
             {
                 // Inform new User that he is not connected
-                this->sendMessage(string(std::to_string(static_cast<int>(messageType_e::REMOTE_USER_KO))), sender->socketFd);
+                this->sendMessage(string(std::to_string(static_cast<int>(messageType_e::REMOTE_USER_KO))), sender->getSocketFD());
             }
         }
 
@@ -122,10 +122,10 @@ void Proxy::processNewMessage(messageType_e messageType, std::shared_ptr<userInf
     }
     case messageType_e::MESSAGE:
     {
-        if(sender->pairedUserFd > -1)
+        if(sender->getPairedUserFD() > -1)
         {
             // Forward message to user
-            this->sendMessage(string(std::to_string(static_cast<int>(messageType_e::MESSAGE))) +  message, sender->pairedUserFd);
+            this->sendMessage(string(std::to_string(static_cast<int>(messageType_e::MESSAGE))) +  message, sender->getPairedUserFD());
         }
         else
         {
@@ -136,7 +136,7 @@ void Proxy::processNewMessage(messageType_e messageType, std::shared_ptr<userInf
     }
     case messageType_e::DISCONNECT:
     {
-        this->removeUser(sender->socketFd);
+        this->removeUser(sender->getSocketFD());
         break;            
     }
     
@@ -152,7 +152,7 @@ void Proxy::processNewMessage(messageType_e messageType, std::shared_ptr<userInf
 */
 void Proxy::manageSocketInThread(int socketFd)
 {
-    std::map<int, shared_ptr<userInfo_t>>::iterator it;
+    std::map<int, shared_ptr<User>>::iterator it;
     while (1)
     {
         string message = this->receiveMessage(socketFd);
@@ -185,15 +185,15 @@ bool Proxy::connectToAnotherUSer(int newCommerFd)
     bool connected = false;
     if(this->users.size() > 1)
     {
-        std::map<int, shared_ptr<userInfo_t>>::iterator it;
+        std::map<int, shared_ptr<User>>::iterator it;
         for (it = this->users.begin(); it != this->users.end(); it++)
         {
             if (it->first != newCommerFd)
             {
-                if(it->second->secret == this->users[newCommerFd]->secret)
+                if(it->second->getSecret() == this->users[newCommerFd]->getSecret())
                 {
-                    it->second->pairedUserFd = newCommerFd;
-                    this->users[newCommerFd]->pairedUserFd = it->first;
+                    it->second->setPairedUserFD(newCommerFd);
+                    this->users[newCommerFd]->setPairedUserFD(it->first);
                     connected = true;
                 }
                 else
@@ -214,13 +214,13 @@ bool Proxy::connectToAnotherUSer(int newCommerFd)
 void Proxy::removeUser(int userFD)
 {
     // Find if some users where connected to him, invalidate the connection and send them a notification
-    std::map<int, shared_ptr<userInfo_t>>::iterator it;
+    std::map<int, shared_ptr<User>>::iterator it;
     for(it = this->users.begin(); it != this->users.end(); it++)
     {
-        if (it->second->pairedUserFd == userFD)
+        if (it->second->getPairedUserFD() == userFD)
         {
             this->sendMessage(string(std::to_string(static_cast<int>(messageType_e::REMOTE_USER_KO))), it->first);
-            it->second->pairedUserFd = -1;
+            it->second->setPairedUserFD(-1);
         }
     }
 

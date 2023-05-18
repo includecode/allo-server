@@ -3,8 +3,8 @@
  * 
 */
 #include "Device.h"
-#include "Proxy.h"
 #include "User.h"
+#include "Proxy.h"
 
 void runProxy();
 void runUser(string secret);

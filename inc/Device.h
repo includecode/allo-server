@@ -5,7 +5,6 @@
 #pragma once
 #include "Common.h"
 #include "Device.h"
-#include <fstream>
 
 #define PROXY_PORT 1030
 #define MAX_MSG_SIZE 1024

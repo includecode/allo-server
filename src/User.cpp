@@ -176,13 +176,15 @@ void User::waitForAnotherUser()
     }
     else
     {
-        // Stop waiting the thread "socketReadThread"
-        cout << USER_PAIR_TIME_OUT << " s Timeout expired: Exiting..." << endl;
         lk.unlock();
+        cout << USER_PAIR_TIME_OUT << " s Timeout expired: Exiting..." << endl;
+    }
+
+    // Stop waiting the thread "socketReadThread" and end the reader thread
         mutexTimerExpiredVar.lock(); 
         this->isTimerExpired = true;
         mutexTimerExpiredVar.unlock();
-    }
+
 }
 
 /**
@@ -212,7 +214,7 @@ void User::socketReadThread(std::condition_variable& cv, std::mutex& mutexTimerE
             if(messageType != messageType_e::_COUNT)
             {
                 this->processNewMessage(messageType, message.substr(1));
-                if(messageType_e::REMOTE_USER_OK == messageType)
+                if(messageType_e::REMOTE_USER_OK == messageType && (!firstMessage))
                 {
                     cv.notify_all();
                 }
@@ -229,4 +231,34 @@ void User::socketReadThread(std::condition_variable& cv, std::mutex& mutexTimerE
         this_thread::sleep_for(chrono::milliseconds(WAIT_USER_RELEX_MS));
         firstMessage = false;
     }
+}
+
+/* Getters and setters */
+void User::setSocketFD(int socketFD)
+{
+    this->socketFd = socketFD;
+}
+
+int User::getSocketFD()
+{
+    return this->socketFd;
+}
+
+string User::getSecret()
+{
+    return this->secret;
+}
+
+void User::setSecret(string secret)
+{
+    this->secret = secret;
+}
+void User::setPairedUserFD(int pairedUserFd)
+{
+    this->pairedUserFd = pairedUserFd;
+}
+
+int User::getPairedUserFD()
+{
+    return this->pairedUserFd;
 }

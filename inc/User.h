@@ -18,6 +18,7 @@ class User : public Device
 {
 private:
     string secret;
+    int pairedUserFd = -1;
     std::atomic<bool> isTimerExpired{false}; // Timer to wait for another user
     std::atomic<bool> isConnectedToAnotherUser{false};
 
@@ -25,8 +26,6 @@ private:
 public:
     User(string secret);
     ~User();
-    bool send_SYN_connect(uint16_t timeout);
-    void send_disconnect();
     void sendCommands();
     void waitForAnotherUser();
     void socketReadThread(std::condition_variable& cv, std::mutex &mutexTimerExpiredVar);
@@ -34,5 +33,13 @@ public:
     
     /// @overload virtuals
     void run();
+    
+    // Getters and setters
+    void setSocketFD(int socketFD);
+    int getSocketFD();
+    string getSecret();
+    void setSecret(string secret);
+    void setPairedUserFD(int paredFd);
+    int getPairedUserFD();
     
 }; // Class User
