@@ -29,7 +29,7 @@ public:
     void sendCommands();
     void waitForAnotherUser();
     void socketReadThread(std::condition_variable& cv, std::mutex &mutexTimerExpiredVar);
-    void processNewMessage(messageType_e messageType, string message = string(""));
+    void processNewMessage(messageType_e messageType, const string &message = string(""));
     
     /// @overload virtuals
     void run();

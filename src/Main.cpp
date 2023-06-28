@@ -41,8 +41,19 @@ int main(int argc, char const **argv)
 */
 void runProxy()
 {
-    shared_ptr<Proxy> proxy = make_shared<Proxy>();
-    proxy->run();
+    try
+    {
+        shared_ptr<Proxy> proxy = make_shared<Proxy>();
+        proxy->run();
+    }
+    catch(const ExceptionHandler& e)
+    {
+        std::cout << e.what() << std::endl;
+    }
+    catch(const std::exception& e)
+    {
+        std::cout << e.what() << std::endl;
+    }
 }
 
 /**
@@ -50,8 +61,19 @@ void runProxy()
 */
 void runUser(string secret)
 {
-    shared_ptr<User> user = make_shared<User>(secret);
-    user->run();
+    try
+    {
+        shared_ptr<User> user = make_shared<User>(secret);
+        user->run();
+    }
+    catch(const ExceptionHandler& e)
+    {
+        std::cout << e.what() << std::endl;
+    }
+    catch(const std::exception& e)
+    {
+        std::cout << e.what() << std::endl;
+    }
 }
 
 /**

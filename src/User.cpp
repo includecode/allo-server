@@ -33,7 +33,9 @@ void User::run()
 
     if(this->socketFd < 0)
     {
-        return;
+        string logMsg("Failed to open a new socket");
+        LOG_TO_FILE(logMsg);
+        throw ExceptionHandler(logMsg, exceptionType_e::CRITICAL);
     }
 
     struct sockaddr_in serv_addr;
@@ -42,8 +44,9 @@ void User::run()
     server = gethostbyname("localhost");
     if (server == NULL) 
     {
-        cout << "ERROR, no such host" << endl;
-        exit(0);
+        string logMsg("ERROR, no such host");
+        LOG_TO_FILE(logMsg);
+        throw ExceptionHandler(logMsg, exceptionType_e::CRITICAL);
     }
  
     memset((char *) &serv_addr, 0, sizeof(serv_addr));
@@ -55,9 +58,10 @@ void User::run()
 
     if (connect(this->socketFd, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0)
     {
-        cout << "ERROR connecting, make sure host is running and restart" << endl;
         this->closeSocket(this->socketFd);
-        return;
+        string logMsg("ERROR connecting, make sure host is running and restart");
+        LOG_TO_FILE(logMsg);
+        throw ExceptionHandler(logMsg, exceptionType_e::CRITICAL);
     }
     
     /* Wait for SYN_ACK */
@@ -82,7 +86,7 @@ void User::run()
  * @param messageType   : Type of the message
  * @param message       : Optional message for message with type \c messageType_e::SEND_MESSAGE or \c messageType_e::MESSAGE
 */
-void User::processNewMessage(messageType_e messageType, string message)
+void User::processNewMessage(messageType_e messageType, const string& message)
 {
     switch (messageType)
     {
@@ -122,12 +126,12 @@ void User::processNewMessage(messageType_e messageType, string message)
             }
         }
 
-        message = message.substr(pos +1);
-        cout << message << endl;
+        std::string realMessage(message.substr(pos +1));
+        cout << realMessage << endl;
         if(isEchoReply)
         {
             // Resend the same message to the User
-            this->sendMessage(std::to_string(static_cast<int>(messageType_e::MESSAGE)) + message, this->socketFd);
+            this->sendMessage(std::to_string(static_cast<int>(messageType_e::MESSAGE)) + realMessage, this->socketFd);
         }
         
         break;            

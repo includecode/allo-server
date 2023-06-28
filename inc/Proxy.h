@@ -19,7 +19,7 @@ private:
 public:
     Proxy();
     ~Proxy();
-    void processNewMessage(string message);
+    void processNewMessage(const string &message);
     void manageSocketInThread(int socketFd);
     bool connectToAnotherUSer(int newCommerFd);
     void processNewMessage(messageType_e messageType, std::shared_ptr<User> &sender, string message = string(""));

@@ -4,7 +4,6 @@
 */
 #pragma once
 #include "Common.h"
-#include "Device.h"
 
 #define PROXY_PORT 1030
 #define MAX_MSG_SIZE 1024
@@ -47,7 +46,7 @@ public:
     Device(deviceType_e type);
     ~Device();
     int openSocket();
-    int sendMessage(string message, int socketFd);
+    void sendMessage(string message, int socketFd);
     string receiveMessage(int socketFd);
     void closeSocket(int socketFd);
     void enableDisableSocketBlocking(int socketFd, readBlockingType_e type);

@@ -44,8 +44,9 @@ int Device::openSocket()
     sockfd =  socket(AF_INET, SOCK_STREAM, 0);
     if (sockfd < 0)
     {
-        cout << "ERROR opening socket" << endl;
-        return sockfd;
+        string logMsg("ERROR opening socket");
+        LOG_TO_FILE(logMsg);
+        throw ExceptionHandler(logMsg, exceptionType_e::CRITICAL);
     }
 
     // Prevent kernel from keeping socketFD alive in a waiting state when process is killed
@@ -69,8 +70,9 @@ int Device::openSocket()
     if (bind(sockfd, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0)
     {
         this->closeSocket(sockfd);
-        cout << "ERROR on binding, please restart, errno: " << errno << endl;
-        return -1;
+        string logMsg("ERROR on binding, please restart, errno:" + std::to_string(errno));
+        LOG_TO_FILE(logMsg);
+        throw ExceptionHandler(logMsg, exceptionType_e::CRITICAL);
     }
 
     return sockfd;
@@ -81,7 +83,7 @@ int Device::openSocket()
  * @param  socketFd : Socket file descriptor to send
  * @return number of bytes sent or error code if send error
 */
-int Device::sendMessage(string message, int socketFd)
+void Device::sendMessage(string message, int socketFd)
 {
     /// cout << "Debug:<---------" << message << " to " << socketFd <<endl; // "to FD:" << socketFd << endl;
     int ret = send(socketFd, message.c_str(), message.size(), 0);
@@ -89,7 +91,6 @@ int Device::sendMessage(string message, int socketFd)
     {
         cout << "ERROR writing to socket" << endl;
     }
-    return ret;
 }
 
 /**

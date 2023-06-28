@@ -18,11 +18,13 @@ Proxy::~Proxy()
 
 void Proxy::run()
 {
-    this->socketFd = this->openSocket();
-
-    if(this->socketFd < 0)
+    try
     {
-        return;
+        this->socketFd = this->openSocket();
+    }
+    catch(const ExceptionHandler& e)
+    {
+        throw;
     }
 
     struct sockaddr_in cli_addr;
