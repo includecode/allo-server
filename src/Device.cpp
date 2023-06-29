@@ -38,7 +38,7 @@ Device::~Device()
 int Device::openSocket()
 {
     int sockfd;
-    struct sockaddr_in serv_addr, cli_addr;
+    struct sockaddr_in serv_addr;
     
     // create a socket
     sockfd =  socket(AF_INET, SOCK_STREAM, 0);
