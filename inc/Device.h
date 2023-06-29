@@ -44,7 +44,7 @@ protected:
 
 public:
     Device(deviceType_e type);
-    ~Device();
+    virtual ~Device();
     int openSocket();
     void sendMessage(string message, int socketFd);
     string receiveMessage(int socketFd);
