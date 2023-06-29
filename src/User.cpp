@@ -148,10 +148,16 @@ void User::processNewMessage(messageType_e messageType, const string& message)
 void User::sendCommands()
 {
     std::string line;
-    cout << "-------- @@@ AT ANY TIME @@@, type a message and press enter -----------" << endl;
+    cout << "-------- @@@ Type a message to send to remote user @@@ -----------" << endl;
+    cout << "-------- [Type 'quit' to exit] -----------" << endl;
     while(1)
     {
         std::getline(std::cin, line);
+        if(std::string(line) == std::string("quit"))
+        {
+            break;
+        }
+        
         this->sendMessage(string(std::to_string(static_cast<int>(messageType_e::MESSAGE))) + line, this->socketFd);
     }
 }
