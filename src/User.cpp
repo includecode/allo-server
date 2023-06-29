@@ -200,7 +200,6 @@ void User::waitForAnotherUser()
 */
 void User::socketReadThread(std::condition_variable& cv, std::mutex& mutexTimerExpiredVar)
 {
-    bool firstMessage = true;
     while (1)
     {
         // Manage timer case, flag updated by caller thread
@@ -220,14 +219,14 @@ void User::socketReadThread(std::condition_variable& cv, std::mutex& mutexTimerE
             if(messageType != messageType_e::_COUNT)
             {
                 this->processNewMessage(messageType, message.substr(1));
-                if(messageType_e::REMOTE_USER_OK == messageType && (!firstMessage))
+                if(messageType_e::REMOTE_USER_OK == messageType)
                 {
                     cv.notify_all();
                 }
             }
 
             // Remote User disconnected
-            if(messageType == messageType_e::REMOTE_USER_KO && (!firstMessage))
+            if(messageType == messageType_e::REMOTE_USER_KO)
             {
                 this->isConnectedToAnotherUser = false;
             }
@@ -235,7 +234,6 @@ void User::socketReadThread(std::condition_variable& cv, std::mutex& mutexTimerE
 
         // Tempo
         this_thread::sleep_for(chrono::milliseconds(WAIT_USER_RELEX_MS));
-        firstMessage = false;
     }
 }
 
