@@ -32,25 +32,27 @@ void Proxy::run()
 
     std::cout << "Waiting for clients..." << std::endl;
     while (1)
-    {
-        if(this->users.size() >= MAX_USERS)
-        {
-            /// std::cout << "Max users coount reached, Proxy does not accept more users" << std::endl;
-            this_thread::sleep_for(chrono::seconds(5));
-        }    
-
+    { 
         listen(this->socketFd ,MAX_USERS);
 
         // The accept() call actually accepts an incoming connection
         clilen = sizeof(cli_addr);
 
+        if(this->users.size() >= MAX_USERS)
+        {
+            std::cout << "Max users count reached, Proxy does not accept more users" << std::endl;
+            this_thread::sleep_for(chrono::seconds(10));
+            continue;
+        }   
+
         int newsockfd = accept(this->socketFd, (struct sockaddr *) &cli_addr, &clilen);
         if (newsockfd < 0)
         {
             cout << "ERROR on accept" << endl;
+            continue;
         }
 
-        cout << "server: got connection from " << inet_ntoa(cli_addr.sin_addr) << "port " << ntohs(cli_addr.sin_port) << endl;
+        cout << "server: got connection from " << inet_ntoa(cli_addr.sin_addr) << " port " << ntohs(cli_addr.sin_port) << endl;
 
         // If connected user does not exist, insert him in map
         if (this->users.find(newsockfd) == this->users.end())
