@@ -169,7 +169,6 @@ void User::waitForAnotherUser()
 
     // Call reader thread
     std::thread reader([&] {this->socketReadThread(cv, mutexTimerExpiredVar);});
-    reader.detach(); // Fire and forget
 
     // Wait for reader thread until timeout
     if(cv.wait_until(lk, now + USER_PAIR_TIME_OUT * 1000ms, [&](){return this->isConnectedToAnotherUser == true;}))
@@ -185,9 +184,12 @@ void User::waitForAnotherUser()
     }
 
     // Stop waiting the thread "socketReadThread" and end the reader thread
-        mutexTimerExpiredVar.lock(); 
-        this->isTimerExpired = true;
-        mutexTimerExpiredVar.unlock();
+    mutexTimerExpiredVar.lock(); 
+    this->isTimerExpired = true;
+    mutexTimerExpiredVar.unlock();
+
+    // Properly end reader thread
+    reader.join();
 
 }
 
