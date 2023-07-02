@@ -34,7 +34,7 @@ const char * ExceptionHandler::what () const throw ()
 */
 void ExceptionHandler::writeTologFile(const string &message)
 {
-    ofstream file("logs/log.log");
+    ofstream file("logs/log.log", ios::basic_ios::app);
 
     if(file.is_open())
     {
